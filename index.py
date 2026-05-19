@@ -307,9 +307,7 @@ async def on_fetch(request, env, ctx):
 
         if "/bootstrap" in url:
             try:
-                with open("schema.sql", "r") as f:
-                    schema = f.read()
-                await db.bootstrap_db(schema)
+                await db.bootstrap_db()
                 return Response.new("Database bootstrapped successfully!")
             except Exception as e:
                 return Response.new(f"Bootstrap failed: {e}", status=500)
