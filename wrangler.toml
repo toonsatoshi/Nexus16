@@ -9,4 +9,4 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "DB"
 database_name = "nexus"
-database_id = "809930f5-93df-403d-82c5-14f777366d40"
+# database_id = "PASTE_YOUR_DATABASE_ID_HERE"
