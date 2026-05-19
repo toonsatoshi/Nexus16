@@ -110,7 +110,7 @@ def get_symbols_keyboard(selected_ids):
 async def ensure_game(user_id):
     if user_id in ACTIVE_GAMES:
         return ACTIVE_GAMES[user_id]
-    saved_games = db.load_active_games()
+    saved_games = await db.load_active_games()
     for g in saved_games:
         if g["p1"] == user_id or g["p2"] == user_id:
             game = Game(g["p1"], g["p2"], g["p1_hp"], g["p2_hp"], g["p1_combo"], g["p2_combo"], g["round"], g["p1_level"], g["p2_level"], g.get("wager", 0.0))
@@ -120,18 +120,18 @@ async def ensure_game(user_id):
     return None
 
 async def start_game(p1, p2):
-    p1_data = db.get_player(p1)
-    p2_data = db.get_player(p2, "Nexus Bot") if p2 != AI_USER_ID else {"level": 1}
+    p1_data = await db.get_player(p1)
+    p2_data = await db.get_player(p2, "Nexus Bot") if p2 != AI_USER_ID else {"level": 1}
     
     game = Game(p1, p2, p1_level=p1_data["level"], p2_level=p2_data["level"])
     ACTIVE_GAMES[p1] = game
     ACTIVE_GAMES[p2] = game
-    db.save_active_game(p1, p2, game.to_dict())
+    await db.save_active_game(p1, p2, game.to_dict())
 
     for pid in [p1, p2]:
         if pid == AI_USER_ID: continue
         opp_id = game.get_opponent_id(pid)
-        opp_p = db.get_player(opp_id, "Nexus Bot") if opp_id != AI_USER_ID else {"username": "Nexus Bot", "level": 1}
+        opp_p = await db.get_player(opp_id, "Nexus Bot") if opp_id != AI_USER_ID else {"username": "Nexus Bot", "level": 1}
         msg = (f"⚔️ <b>Match Found!</b> ⚔️\n\n"
                f"You vs <b>{opp_p['username']}</b> (Lvl {opp_p['level']})\n"
                f"Round 1 begins. Select 3 symbols.")
@@ -140,7 +140,7 @@ async def start_game(p1, p2):
 async def finish_round(game):
     p1, p2 = game.p1_id, game.p2_id
     p1_dmg, p2_dmg = game.process_round()
-    db.save_active_game(p1, p2, game.to_dict())
+    await db.save_active_game(p1, p2, game.to_dict())
 
     for pid in [p1, p2]:
         if pid == AI_USER_ID: continue
@@ -163,17 +163,17 @@ async def finish_round(game):
             if pid == AI_USER_ID: continue
             if winner_id == "Draw":
                 msg = "🤝 <b>It's a Draw!</b>"
-                db.update_player(pid, XP_PER_LOSS)
+                await db.update_player(pid, XP_PER_LOSS)
             elif winner_id == pid:
                 msg = "🏆 <b>Victory!</b>"
-                leveled_up = db.update_player(pid, XP_PER_WIN, win=True)
+                leveled_up = await db.update_player(pid, XP_PER_WIN, win=True)
                 if leveled_up: msg += "\n\n✨ <b>Level Up!</b>"
             else:
                 msg = "💀 <b>Defeat!</b>"
-                db.update_player(pid, XP_PER_LOSS, loss=True)
+                await db.update_player(pid, XP_PER_LOSS, loss=True)
             await bot.send_message(pid, msg, reply_markup=get_main_menu_keyboard())
         
-        db.delete_active_game(p1, p2)
+        await db.delete_active_game(p1, p2)
         if p1 in ACTIVE_GAMES: del ACTIVE_GAMES[p1]
         if p2 in ACTIVE_GAMES: del ACTIVE_GAMES[p2]
     else:
@@ -191,12 +191,12 @@ async def process_update(update):
 
         if text.startswith("/start"):
             user = msg["from"]
-            db.get_player(user_id, user.get("username") or user.get("first_name"))
+            await db.get_player(user_id, user.get("username") or user.get("first_name"))
             welcome = f"🛡️ <b>NEXUS-7 PvP</b> 🛡️\n\nWelcome!\nReady to test your strategy?"
             await bot.send_message(chat_id, welcome, reply_markup=get_main_menu_keyboard())
         
         elif text.startswith("/profile"):
-            p = db.get_player(user_id)
+            p = await db.get_player(user_id)
             profile_text = (f"👤 <b>{p['username']}'s Profile</b>\n\n"
                             f"Level: {p['level']}\nXP: {p['xp']}/{XP_PER_LEVEL}\n"
                             f"Wins: {p['wins']} | Losses: {p['losses']}")
@@ -267,7 +267,7 @@ async def wallet_menu(cb):
     user_id = cb["from"]["id"]
     chat_id = cb["message"]["chat"]["id"]
     message_id = cb["message"]["message_id"]
-    p = db.get_player(user_id)
+    p = await db.get_player(user_id)
     text = (f"💎 <b>Your Nexus Wallet</b>\n\n"
             f"<b>Address:</b> <code>{p['wallet_address'] or 'Not Created'}</code>\n"
             f"<b>Balance:</b> {round(p['ton_balance'], 4)} TON")
@@ -307,7 +307,7 @@ async def on_fetch(request, env, ctx):
 
         if "/health" in url:
             try:
-                leaders = db.get_leaderboard(1)
+                leaders = await db.get_leaderboard(1)
                 return Response.new(f"Health OK. DB Ready. Leaders: {len(leaders)}")
             except Exception as e:
                 return Response.new(f"Health Fail: {e}", status=500)
