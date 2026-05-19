@@ -1,4 +1,4 @@
-name = "nexus17"
+name = "nexus16"
 main = "bot.py"
 compatibility_date = "2024-04-03"
 compatibility_flags = ["python_workers"]
