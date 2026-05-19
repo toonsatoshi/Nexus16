@@ -11,18 +11,29 @@ A highly interactive Telegram PvP battle bot with progression, leveling, and a g
 *   **Visual Combat:** Enhanced battle reports with HP bars and combat emojis.
 *   **Practice Mode:** Instant battles against the Nexus Bot to test your combos.
 
-## Setup Instructions
+## Setup Instructions (Cloudflare Workers)
 
-1.  **Configure the Bot:**
-    *   Create a `.env` file with your `TELEGRAM_BOT_TOKEN`.
-2.  **Install Dependencies:**
+1.  **Configure Secrets:**
+    *   Set your Telegram Bot Token in Cloudflare:
+        ```bash
+        npx wrangler secret put BOT_TOKEN
+        ```
+2.  **Deploy:**
     ```bash
-    pip install python-telegram-bot python-dotenv
+    npx wrangler deploy
     ```
-3.  **Run the Bot:**
+3.  **Set Webhook:**
+    *   After deployment, visit: `https://your-worker-url.workers.dev/set-webhook`
+
+## Local Development
+
+1.  **Run Dev Server:**
     ```bash
-    python bot.py
+    npx wrangler dev
     ```
+2.  **Environment Variables:**
+    *   For local dev, you can use `.dev.vars` file (similar to `.env`) with:
+        `BOT_TOKEN=your_token_here`
 
 ## Commands
 

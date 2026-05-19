@@ -276,9 +276,9 @@ async def on_fetch(request, env, ctx):
         return Response.new(f"DB Binding Error: {e}", status=500)
 
     if bot is None:
-        token = getattr(env, "TELEGRAM_BOT_TOKEN", None)
+        token = getattr(env, "BOT_TOKEN", None)
         if not token:
-            return Response.new("TELEGRAM_BOT_TOKEN not found in env", status=500)
+            return Response.new("BOT_TOKEN not found in env", status=500)
         bot = TelegramBot(token)
 
     url = request.url
