@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from constants import *
 import db
 from models import Game, get_ai_combo, calc_dmg
-from ton_manager import ton_manager
+# from ton_manager import ton_manager
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -65,7 +65,8 @@ async def wallet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     p = db.get_player(user.id, user.username or user.first_name)
     
     if not p["wallet_address"]:
-        await ton_manager.create_user_wallet(user.id)
+        # await ton_manager.create_user_wallet(user.id)
+        pass
         p = db.get_player(user.id)
     
     text = (f"💎 <b>Your Nexus Wallet</b> 💎\n\n"
@@ -217,13 +218,15 @@ async def start_game(p1, p2, context):
 
         # Start escrow transfers
         await context.bot.send_message(chat_id=p1, text=f"⏳ Locking {match_wager} TON wager...")
-        tx1 = await ton_manager.transfer(p1_data["wallet_mnemonic"], ARENA_ADDRESS, match_wager, f"Game Escrow: {p1}")
+        # tx1 = await ton_manager.transfer(p1_data["wallet_mnemonic"], ARENA_ADDRESS, match_wager, f"Game Escrow: {p1}")
+        tx1 = "mock_tx"
         
         if p2 != AI_USER_ID:
             await context.bot.send_message(chat_id=p2, text=f"⏳ Locking {match_wager} TON wager...")
-            tx2 = await ton_manager.transfer(p2_data["wallet_mnemonic"], ARENA_ADDRESS, match_wager, f"Game Escrow: {p2}")
+            # tx2 = await ton_manager.transfer(p2_data["wallet_mnemonic"], ARENA_ADDRESS, match_wager, f"Game Escrow: {p2}")
+            tx2 = "mock_tx"
             if not tx2:
-                if tx1: await ton_manager.transfer(ARENA_MNEMONIC, p1_data["wallet_address"], match_wager, "Refund: Opponent Error")
+                # if tx1: await ton_manager.transfer(ARENA_MNEMONIC, p1_data["wallet_address"], match_wager, "Refund: Opponent Error")
                 await context.bot.send_message(chat_id=p1, text="❌ Match cancelled: Opponent wallet error.")
                 return
         
@@ -295,7 +298,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if wager > 0:
                     payout = wager * 2 * 0.95
                     msg += f"\n💰 <b>Payout: {round(payout, 4)} TON</b>"
-                    await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(opp_id)["wallet_address"], payout, "Opponent Forfeit")
+                    # await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(opp_id)["wallet_address"], payout, "Opponent Forfeit")
                 await context.bot.send_message(chat_id=opp_id, text=msg, parse_mode="HTML", reply_markup=get_main_menu_keyboard())
             await query.message.delete()
         return
@@ -370,14 +373,14 @@ async def finish_round(game, context):
                 msg = "🤝 <b>It's a Draw!</b>\nBoth players fought to a standstill."
                 if wager > 0:
                     msg += f"\nYour {wager} TON wager has been refunded."
-                    await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(pid)["wallet_address"], wager, "Refund: Draw")
+                    # await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(pid)["wallet_address"], wager, "Refund: Draw")
                 db.update_player(pid, XP_PER_LOSS)
             elif winner_id == pid:
                 payout = wager * 2 * 0.95 # 5% arena fee
                 msg = "🏆 <b>Victory!</b>\nYou have defeated your opponent and gained XP!"
                 if wager > 0:
                     msg += f"\n💰 <b>Payout: {round(payout, 4)} TON</b> (95% of total pot)"
-                    await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(pid)["wallet_address"], payout, "Match Payout")
+                    # await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(pid)["wallet_address"], payout, "Match Payout")
                 leveled_up = db.update_player(pid, XP_PER_WIN, win=True)
                 if leveled_up: msg += "\n\n✨ <b>Level Up!</b> You are now stronger."
             else:
@@ -417,7 +420,7 @@ async def quit_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if wager > 0:
             payout = wager * 2 * 0.95
             msg += f"\n💰 <b>Payout: {round(payout, 4)} TON</b>"
-            await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(opp_id)["wallet_address"], payout, "Opponent Forfeit")
+            # await ton_manager.transfer(ARENA_MNEMONIC, db.get_player(opp_id)["wallet_address"], payout, "Opponent Forfeit")
         await context.bot.send_message(chat_id=opp_id, text=msg, parse_mode="HTML", reply_markup=get_main_menu_keyboard())
 
 # Cloudflare Worker Entry Point
