@@ -269,16 +269,39 @@ async def wallet_menu(cb):
 # Cloudflare Worker Entry
 async def on_fetch(request, env, ctx):
     global bot
-    db.set_db(env.DB)
+    try:
+        db.set_db(env.DB)
+    except Exception as e:
+        logger.error(f"DB Binding Error: {e}")
+        return Response.new(f"DB Binding Error: {e}", status=500)
+
     if bot is None:
-        bot = TelegramBot(env.TELEGRAM_BOT_TOKEN)
+        token = getattr(env, "TELEGRAM_BOT_TOKEN", None)
+        if not token:
+            return Response.new("TELEGRAM_BOT_TOKEN not found in env", status=500)
+        bot = TelegramBot(token)
+
+    url = request.url
+    if "/set-webhook" in url:
+        webhook_url = url.split("/set-webhook")[0]
+        res = await bot._post("setWebhook", {"url": webhook_url})
+        return Response.new(json.dumps(res))
+
+    if "/health" in url:
+        try:
+            leaders = db.get_leaderboard(1)
+            return Response.new(f"Health OK. DB Ready. Leaders: {len(leaders)}")
+        except Exception as e:
+            return Response.new(f"Health Fail: {e}", status=500)
 
     if request.method == "POST":
         try:
-            body = await request.json()
+            body_text = await request.text()
+            logger.info(f"Received update: {body_text}")
+            body = json.loads(body_text)
             await process_update(body)
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error processing update: {e}")
         return Response.new("OK")
     
-    return Response.new("Nexus Bot (Native Fetch) is Active.")
+    return Response.new("Nexus Bot is Active. Visit /set-webhook to register.")
