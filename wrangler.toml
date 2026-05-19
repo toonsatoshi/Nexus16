@@ -1,5 +1,5 @@
 name = "nexus16"
-main = "bot.py"
+main = "index.py"
 compatibility_date = "2024-04-03"
 compatibility_flags = ["python_workers"]
 
@@ -9,8 +9,4 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "DB"
 database_name = "nexus"
-# database_id = "YOUR_D1_DATABASE_ID"
-
-[assets]
-directory = "./public"
-binding = "ASSETS"
+database_id = "809930f5-93df-403d-82c5-14f777366d40"
