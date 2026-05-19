@@ -305,12 +305,24 @@ async def on_fetch(request, env, ctx):
             res = await bot._post("setWebhook", {"url": base_url})
             return Response.new(json.dumps(res), headers=Object.fromEntries(to_js({"Content-Type": "application/json"})))
 
+        if "/bootstrap" in url:
+            try:
+                with open("schema.sql", "r") as f:
+                    schema = f.read()
+                await db.bootstrap_db(schema)
+                return Response.new("Database bootstrapped successfully!")
+            except Exception as e:
+                return Response.new(f"Bootstrap failed: {e}", status=500)
+
         if "/health" in url:
             try:
                 leaders = await db.get_leaderboard(1)
                 return Response.new(f"Health OK. DB Ready. Leaders: {len(leaders)}")
             except Exception as e:
-                return Response.new(f"Health Fail: {e}", status=500)
+                msg = f"Health Fail: {e}"
+                if "no such table" in str(e).lower():
+                    msg += "\n\nTip: It looks like your database tables are missing. Please visit /bootstrap to initialize them."
+                return Response.new(msg, status=500)
 
         if request.method == "POST":
             try:

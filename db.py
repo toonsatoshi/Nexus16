@@ -62,7 +62,9 @@ async def delete_active_game(p1_id, p2_id):
 
 async def load_active_games():
     res = await _DB.prepare("SELECT game_data FROM active_games").all()
-    return [json.loads(r.game_data) for r in res.results]
+    # Ensure we are handling the JS Proxy object correctly
+    results = res.results if hasattr(res, "results") else res
+    return [json.loads(r.game_data) for r in results]
 
 async def update_ton_balance(user_id, amount_change, tx_hash=None, tx_type=None):
     await _DB.prepare("UPDATE players SET ton_balance = ton_balance + ? WHERE user_id = ?").bind(amount_change, user_id).run()
@@ -76,8 +78,15 @@ async def get_leaderboard(limit=10):
         ORDER BY level DESC, wins DESC 
         LIMIT ?
     """).bind(limit).all()
-    return [(r.username, r.level, r.wins, r.user_id) for r in res.results]
+    results = res.results if hasattr(res, "results") else res
+    return [(r.username, r.level, r.wins, r.user_id) for r in results]
 
+
+async def bootstrap_db(schema_sql):
+    if not _DB:
+        raise Exception("Database not initialized")
+    # D1 exec can handle multiple statements
+    return await _DB.exec(schema_sql)
 
 def init_db():
     # In Workers, initialization is usually done via wrangler d1 execute
