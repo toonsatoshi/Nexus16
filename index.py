@@ -282,9 +282,18 @@ async def on_fetch(request, env, ctx):
         
         # Initialize Bot if needed
         if bot is None:
+            # Debugging: Log available keys in env (names only)
+            try:
+                env_keys = dir(env)
+                logger.info(f"Available env keys: {env_keys}")
+            except Exception as e:
+                logger.error(f"Could not list env keys: {e}")
+
             token = getattr(env, "BOT_TOKEN", None)
             if not token:
-                return Response.new("BOT_TOKEN not found in env. Please set it using 'wrangler secret put BOT_TOKEN'.", status=500)
+                # Provide more info in the response for debugging
+                available = ", ".join([k for k in dir(env) if not k.startswith("_")])
+                return Response.new(f"BOT_TOKEN not found. Available keys: {available}. Please ensure you clicked 'Save and Deploy' in the Cloudflare Dashboard.", status=500)
             bot = TelegramBot(token)
 
         # Handle specific routes
