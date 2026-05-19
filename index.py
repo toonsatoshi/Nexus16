@@ -27,13 +27,20 @@ class TelegramBot:
         payload = json.dumps(data)
         
         try:
-            # Using native JS fetch via pyodide
-            js_headers = Object.fromEntries(to_js({"Content-Type": "application/json"}))
-            response = await fetch(url, method="POST", headers=js_headers, body=payload)
-            return await response.json()
+            # Using native JS fetch via pyodide with correct object conversion
+            options = to_js({
+                "method": "POST",
+                "headers": {"Content-Type": "application/json"},
+                "body": payload
+            }, dict_converter=Object.fromEntries)
+            
+            response = await fetch(url, options)
+            js_data = await response.json()
+            # Convert back to python dict if possible, or just return as is
+            return json.loads(json.dumps(js_data.to_py())) if hasattr(js_data, "to_py") else js_data
         except Exception as e:
             logger.error(f"API Error ({method}): {e}")
-            return None
+            return {"ok": False, "error": str(e)}
 
     async def send_message(self, chat_id, text, parse_mode="HTML", reply_markup=None):
         data = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
@@ -270,38 +277,45 @@ async def wallet_menu(cb):
 async def on_fetch(request, env, ctx):
     global bot
     try:
+        # Ensure DB is initialized
         db.set_db(env.DB)
+        
+        # Initialize Bot if needed
+        if bot is None:
+            token = getattr(env, "BOT_TOKEN", None)
+            if not token:
+                return Response.new("BOT_TOKEN not found in env. Please set it using 'wrangler secret put BOT_TOKEN'.", status=500)
+            bot = TelegramBot(token)
+
+        # Handle specific routes
+        url = str(request.url)
+        
+        if "/set-webhook" in url:
+            # Construct the webhook URL by removing the path
+            base_url = url.split("/set-webhook")[0]
+            res = await bot._post("setWebhook", {"url": base_url})
+            return Response.new(json.dumps(res), headers=Object.fromEntries(to_js({"Content-Type": "application/json"})))
+
+        if "/health" in url:
+            try:
+                leaders = db.get_leaderboard(1)
+                return Response.new(f"Health OK. DB Ready. Leaders: {len(leaders)}")
+            except Exception as e:
+                return Response.new(f"Health Fail: {e}", status=500)
+
+        if request.method == "POST":
+            try:
+                body_text = await request.text()
+                logger.info(f"Received update: {body_text}")
+                body = json.loads(body_text)
+                await process_update(body)
+                return Response.new("OK")
+            except Exception as e:
+                logger.error(f"Error processing update: {e}")
+                return Response.new(f"Error: {e}", status=500)
+        
+        return Response.new("Nexus Bot is Active. Visit /set-webhook to register.")
+
     except Exception as e:
-        logger.error(f"DB Binding Error: {e}")
-        return Response.new(f"DB Binding Error: {e}", status=500)
-
-    if bot is None:
-        token = getattr(env, "BOT_TOKEN", None)
-        if not token:
-            return Response.new("BOT_TOKEN not found in env", status=500)
-        bot = TelegramBot(token)
-
-    url = request.url
-    if "/set-webhook" in url:
-        webhook_url = url.split("/set-webhook")[0]
-        res = await bot._post("setWebhook", {"url": webhook_url})
-        return Response.new(json.dumps(res))
-
-    if "/health" in url:
-        try:
-            leaders = db.get_leaderboard(1)
-            return Response.new(f"Health OK. DB Ready. Leaders: {len(leaders)}")
-        except Exception as e:
-            return Response.new(f"Health Fail: {e}", status=500)
-
-    if request.method == "POST":
-        try:
-            body_text = await request.text()
-            logger.info(f"Received update: {body_text}")
-            body = json.loads(body_text)
-            await process_update(body)
-        except Exception as e:
-            logger.error(f"Error processing update: {e}")
-        return Response.new("OK")
-    
-    return Response.new("Nexus Bot is Active. Visit /set-webhook to register.")
+        logger.error(f"Global Worker Error: {e}")
+        return Response.new(f"Critical Worker Error: {e}", status=500)
